@@ -1,1 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Battery Validator Pro</title>
+<style>
+:root{
+  --bg:#0d1117;--surface:#161b27;--card:#1d2235;--border:#28304a;
+  --accent:#5b9cf6;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;
+  --text:#dde4f0;--muted:#6e7a90;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
 
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:13px 22px;display:flex;align-items:center;gap:10px;}
+header svg{flex-shrink:0;}
+header h1{font-size:1.05rem;font-weight:700;}
+header .sub{font-size:.75rem;color:var(--muted);margin-left:4px;}
+
+.main{padding:16px 20px;max-width:100%;}
+
+/* CONFIG PANEL */
+.config{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:12px;}
+.cfg-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.cfg-row+.cfg-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.lbl{font-size:.74rem;color:var(--muted);font-weight:700;white-space:nowrap;}
+.pbtn{padding:5px 15px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.8rem;cursor:pointer;transition:all .15s;font-weight:500;}
+.pbtn.active{border-color:var(--accent);color:var(--accent);background:#162040;}
+.pbtn:hover:not(.active){border-color:var(--accent);color:var(--text);}
+.tg{display:flex;align-items:center;gap:7px;}
+.tg label{font-size:.76rem;color:var(--muted);white-space:nowrap;}
+.tg input{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;width:82px;font-size:.82rem;}
+.tg input:focus{outline:none;border-color:var(--accent);}
+
+/* DROP ZONE */
+.dz{border:2px dashed var(--border);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:12px;}
+.dz:hover,.dz.drag{border-color:var(--accent);background:#10172a;}
+.dz svg{color:var(--accent);margin-bottom:8px;}
+.dz h3{font-size:.9rem;margin-bottom:4px;}
+.dz p{color:var(--muted);font-size:.78rem;line-height:1.6;}
+.dz .hi{color:var(--accent);font-weight:600;}
+input[type=file]{display:none;}
+
+/* PROGRESS */
+.prog{margin-bottom:10px;}
+.ptxt{font-size:.78rem;color:var(--muted);margin-bottom:5px;}
+.pbg{background:var(--card);border-radius:4px;height:4px;overflow:hidden;}
+.pbar{background:var(--accent);height:4px;border-radius:4px;transition:width .2s;}
+
+/* SUMMARY */
+.summary{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 16px;flex:1;min-width:100px;}
+.sc .sv{font-size:1.55rem;font-weight:700;}
+.sc .sl{font-size:.7rem;color:var(--muted);margin-top:1px;}
+.sc.green .sv{color:var(--green);}
+.sc.red .sv{color:var(--red);}
+.sc.blue .sv{color:var(--accent);}
+
+/* VIEW CONTROLS */
+.vctrl{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+.vctrl h3{font-size:.88rem;font-weight:600;}
+.brow{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+.vb,.fb{padding:4px 11px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:.73rem;cursor:pointer;transition:all .15s;}
+.vb.active,.fb.active{border-color:var(--accent);color:var(--accent);background:#162040;}
+.sep{width:1px;height:16px;background:var(--border);}
+
+/* QUICK TABLE */
+.qtbl{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.scr{overflow-x:auto;}
+table.q{width:100%;border-collapse:collapse;font-size:.76rem;white-space:nowrap;}
+table.q th{background:var(--card);padding:8px 11px;text-align:center;font-size:.64rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);}
+table.q th.tl{text-align:left;}
+table.q td{padding:7px 11px;border-bottom:1px solid #141929;text-align:center;}
+table.q td.tl{text-align:left;}
+table.q tr:last-child td{border-bottom:none;}
+table.q tr:hover td{background:#131828;}
+.a-bl{border-left:2px solid var(--accent)!important;}
+.g-bl{border-left:2px solid var(--green)!important;}
+.uid{font-weight:700;font-size:.82rem;}
+.fn{color:var(--muted);font-size:.63rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dc-tag{display:inline-block;background:#2e1f00;color:var(--yellow);border-radius:3px;padding:1px 5px;font-size:.62rem;margin-top:2px;}
+
+/* DETAIL TABLE */
+.dtbl{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+table.d{width:100%;border-collapse:collapse;font-size:.75rem;}
+table.d th{background:var(--card);padding:8px 11px;text-align:left;font-size:.63rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border);white-space:nowrap;}
+table.d td{padding:8px 11px;border-bottom:1px solid #141929;vertical-align:top;}
+table.d tr:last-child td{border-bottom:none;}
+table.d tr:hover td{background:#131828;}
+
+/* VALUES */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:14px;font-size:.7rem;font-weight:700;}
+.badge.pass{background:#0d2e1a;color:var(--green);}
+.badge.fail{background:#2e0d0d;color:var(--red);}
+.ok{color:var(--green);font-weight:700;}
+.fv{color:var(--red);font-weight:700;}
+.na{color:var(--muted);}
+.sv2{font-size:.64rem;color:var(--muted);margin-top:2px;}
+.rtag{display:inline-block;background:#2e0d0d;color:#f88;border-radius:3px;padding:2px 6px;font-size:.67rem;margin:2px 2px 0 0;}
+.oktag{color:var(--green);font-size:.72rem;}
+
+/* CELL GRID */
+.cgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;min-width:248px;}
+.cv{background:var(--card);border-radius:3px;padding:3px 1px;text-align:center;}
+.cv .cn{color:var(--muted);font-size:.56rem;}
+.cv .cv2{font-size:.63rem;font-weight:600;}
+.cv.cmax{background:#0d2e1a;color:var(--green);}
+.cv.cmin{background:#2e0d0d;color:var(--red);}
+.cv.cdead{opacity:.28;}
+.cnote{font-size:.62rem;color:var(--muted);margin-top:2px;}
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b9cf6" stroke-width="2">
+    <rect x="1" y="6" width="22" height="14" rx="2"/>
+    <path d="M7 6V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2"/>
+    <line x1="12" y1="11" x2="12" y2="15"/><line x1="10" y1="13" x2="14" y2="13"/>
+  </svg>
+  <h1>Battery Validator Pro</h1>
+  <span class="sub">TK-5160 · CC Charge + Discharge · Double-charge detection</span>
+</header>
+
+<div class="main">
+
+<!-- CONFIG -->
+<div class="config">
+  <div class="cfg-row">
+    <span class="lbl">Profile:</span>
+    <button class="pbtn active" onclick="applyPreset('51v60',this)">51V 60Ah</button>
+    <button class="pbtn" onclick="applyPreset('51v45',this)">51V 45Ah</button>
+    <button class="pbtn" id="pCustom" onclick="applyPreset('custom',this)">Custom</button>
+  </div>
+  <div class="cfg-row">
+    <span class="lbl">⚙ Parameters:</span>
+    <div class="tg"><label>Capacity ≥ (Ah)</label><input type="number" id="th_cap" value="57" step="0.1" oninput="setCustom()"></div>
+    <div class="tg"><label>Vel.Diff ≤ (mV)</label><input type="number" id="th_vel" value="200" step="1" oninput="setCustom()"></div>
+    <div class="tg"><label>Discharge = (Ah)</label><input type="number" id="th_disch" value="54" step="0.1" oninput="setCustom()"></div>
+    <div class="tg"><label>Discharge tol ± (Ah)</label><input type="number" id="th_tol" value="1" step="0.1" oninput="setCustom()"></div>
+  </div>
+</div>
+
+<!-- DROP ZONE -->
+<div class="dz" id="dz" onclick="document.getElementById('fi').click()">
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+  <h3>Drop CSV files here</h3>
+  <p>Drag &amp; drop files or click to browse<br><span class="hi">Multiple files supported · up to 20 at once</span></p>
+  <input type="file" id="fi" accept=".csv" multiple>
+</div>
+
+<!-- PROGRESS -->
+<div class="prog" id="progEl" style="display:none">
+  <div class="ptxt" id="progTxt">Processing...</div>
+  <div class="pbg"><div class="pbar" id="progBar" style="width:0%"></div></div>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary" id="summEl" style="display:none">
+  <div class="sc blue"><div class="sv" id="s_tot">0</div><div class="sl">Files</div></div>
+  <div class="sc green"><div class="sv" id="s_pass">0</div><div class="sl">Approved</div></div>
+  <div class="sc red"><div class="sv" id="s_fail">0</div><div class="sl">Rejected</div></div>
+  <div class="sc"><div class="sv" id="s_cap">—</div><div class="sl">Avg Capacity (Ah)</div></div>
+  <div class="sc"><div class="sv" id="s_vel">—</div><div class="sl">Avg VelDiff (mV)</div></div>
+  <div class="sc"><div class="sv" id="s_dis">—</div><div class="sl">Avg Discharge (Ah)</div></div>
+</div>
+
+<!-- VIEW CONTROLS -->
+<div class="vctrl" id="vctrlEl" style="display:none">
+  <h3 id="resTitle">Results</h3>
+  <div class="brow">
+    <button class="vb active" onclick="setView('both',this)">Quick + Detail</button>
+    <button class="vb" onclick="setView('quick',this)">Quick</button>
+    <button class="vb" onclick="setView('detail',this)">Detail</button>
+    <div class="sep"></div>
+    <button class="fb active" onclick="setFilter('all',this)">All</button>
+    <button class="fb" onclick="setFilter('pass',this)">✓ Pass</button>
+    <button class="fb" onclick="setFilter('fail',this)">✗ Fail</button>
+  </div>
+</div>
+
+<!-- QUICK TABLE -->
+<div class="qtbl" id="qEl" style="display:none">
+  <div class="scr">
+    <table class="q">
+      <thead>
+        <tr>
+          <th class="tl" rowspan="2">Unit ID</th>
+          <th rowspan="2">Status</th>
+          <th class="a-bl" colspan="5" style="color:var(--accent)">── CC CHARGE ──</th>
+          <th class="g-bl" colspan="5" style="color:var(--green)">── DISCHARGE ──</th>
+        </tr>
+        <tr>
+          <th class="a-bl">Capacity (Ah)</th>
+          <th>VelDiff (mV)</th>
+          <th>High V Cell</th>
+          <th>High V (mV)</th>
+          <th>Low V Cell</th>
+          <th class="g-bl">Discharge (Ah)</th>
+          <th>VelDiff (mV)</th>
+          <th>High V Cell</th>
+          <th>High V (mV)</th>
+          <th>Low V Cell</th>
+        </tr>
+      </thead>
+      <tbody id="qBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DETAIL TABLE -->
+<div class="dtbl" id="dEl" style="display:none">
+  <div class="scr">
+    <table class="d">
+      <thead>
+        <tr>
+          <th>Unit</th>
+          <th>Status</th>
+          <th>Capacity (Ah)</th>
+          <th>VelDiff (mV)</th>
+          <th>Charge Cell Voltages (1–16)</th>
+          <th>Discharge (Ah)</th>
+          <th>Disch. VelDiff</th>
+          <th>Discharge Cells (1–16)</th>
+          <th>Notes / Reasons</th>
+        </tr>
+      </thead>
+      <tbody id="dBody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════
+const PRESETS={
+  '51v60':{cap:57, vel:200, disch:54,   tol:1},
+  '51v45':{cap:43, vel:200, disch:40.5, tol:1},
+};
+function applyPreset(name,btn){
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(PRESETS[name]){const p=PRESETS[name];g('th_cap').value=p.cap;g('th_vel').value=p.vel;g('th_disch').value=p.disch;g('th_tol').value=p.tol;}
+}
+function setCustom(){
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));
+  g('pCustom').classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════
+function parseCSV(text){
+  const lines=text.split('\n');
+  const header=lines[0].replace(/\r$/,'');
+  const cols=header.split(',').map(c=>c.trim());
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const raw=lines[i].replace(/\r$/,'').replace(/,\s*$/,'');
+    if(!raw||!/^\d/.test(raw))continue;
+    const vals=raw.split(',');
+    const obj={};
+    for(let j=0;j<cols.length;j++) obj[cols[j]]=(vals[j]||'').trim();
+    rows.push(obj);
+  }
+  return rows;
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+const g=id=>document.getElementById(id);
+const n=v=>{const x=parseFloat(v);return isNaN(x)?null:x;};
+const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
+function getTH(){return{cap:parseFloat(g('th_cap').value)||57,vel:parseFloat(g('th_vel').value)||200,disch:parseFloat(g('th_disch').value)||54,tol:parseFloat(g('th_tol').value)||1};}
+
+function getCells(row){
+  const cv={};
+  for(let i=1;i<=16;i++) cv[i]=n(row[`Cell_Voltage_${i}(mV)`]);
+  const valid=Object.entries(cv).filter(([,v])=>v!==null&&v>100);
+  if(!valid.length)return{cv,maxCell:null,minCell:null,maxV:null,minV:null};
+  const maxE=valid.reduce((a,b)=>b[1]>a[1]?b:a);
+  const minE=valid.reduce((a,b)=>b[1]<a[1]?b:a);
+  return{cv,maxCell:+maxE[0],minCell:+minE[0],maxV:maxE[1],minV:minE[1]};
+}
+
+// ═══════════════════════════════════════════
+// CUTOFF: last row where current >= 95% of peak
+// This matches exactly how the user manually reads
+// the capacity from the spreadsheet (last stable row
+// before current begins to taper down)
+// ═══════════════════════════════════════════
+function findCutoff(stepRows){
+  const curr=stepRows.map(r=>r._curr||0);
+  const peak=Math.max(...curr,0);
+  const threshold=peak*0.95;
+  let idx=stepRows.length-1;
+  for(let i=stepRows.length-1;i>=0;i--){
+    if(curr[i]>=threshold){idx=i;break;}
+  }
+  return idx;
+}
+
+// ═══════════════════════════════════════════
+// ANALYSIS
+// ═══════════════════════════════════════════
+function analyzeFile(rows,filename){
+  const NUM=['Current(A)','Capacity(Ah)','Min_Cell_Voltage(mV)','Max_Cell_Voltage(mV)','Step ID','Cycle ID'];
+  const CELLS=Array.from({length:16},(_,i)=>`Cell_Voltage_${i+1}(mV)`);
+  const parsed=rows.map(r=>{
+    const o=Object.assign({},r);
+    [...NUM,...CELLS].forEach(k=>{o[k]=n(r[k]);});
+    o._ss=(r['Step State']||'').trim();
+    o._curr=o['Current(A)']||0;
+    return o;
+  });
+
+  // Group CC Charge steps by cycle
+  const ccCharge=parsed.filter(r=>r._ss==='CC Charge');
+  if(!ccCharge.length)return{error:'No CC Charge rows found',filename};
+
+  const byCycle={};
+  for(const r of ccCharge){
+    const k=r['Cycle ID'];
+    if(!byCycle[k])byCycle[k]=[];
+    byCycle[k].push(r);
+  }
+
+  // Detect DOUBLE CHARGE:
+  // Two separate CC Charge cycles where neither alone reaches 55Ah
+  // but together they do. The second charge is in a later cycle.
+  const cycles=Object.keys(byCycle).map(Number).sort((a,b)=>a-b);
+  const cycleMaxCaps=cycles.map(c=>({cycle:c,maxCap:Math.max(...byCycle[c].map(r=>r['Capacity(Ah)']||0))}));
+  const overallMax=Math.max(...cycleMaxCaps.map(x=>x.maxCap));
+  
+  // Double charge: best single cycle < 55Ah but 2+ charge cycles exist
+  const isDoubleCharge=cycles.length>=2&&overallMax<55;
+
+  let cap,vd,cells,cutCurr,dischCap,dischVd,dischCells,doubleInfo=null;
+
+  if(isDoubleCharge){
+    // First charge cycle + second charge cycle = combined
+    const cycA=cycles[0], cycB=cycles[1];
+    const rowsA=byCycle[cycA], rowsB=byCycle[cycB];
+    const idxA=findCutoff(rowsA), idxB=findCutoff(rowsB);
+    const rowA=rowsA[idxA], rowB=rowsB[idxB];
+    const capA=rowA['Capacity(Ah)'], capB=rowB['Capacity(Ah)'];
+    cap=capA+capB;
+    // VelDiff and cells from SECOND charge cutoff row
+    vd=(rowB['Max_Cell_Voltage(mV)']!==null&&rowB['Min_Cell_Voltage(mV)']!==null)?rowB['Max_Cell_Voltage(mV)']-rowB['Min_Cell_Voltage(mV)']:null;
+    cells=getCells(rowB);
+    cutCurr=rowB._curr;
+    doubleInfo={capA:capA.toFixed(3),capB:capB.toFixed(3),currA:rowA._curr.toFixed(1),currB:rowB._curr.toFixed(1),cycA,cycB};
+
+    // Discharge: CC Discharge in same cycle as second charge (cycB), last row
+    const dischRows=parsed.filter(r=>r._ss==='CC Discharge'&&r['Cycle ID']===cycB);
+    if(dischRows.length){
+      const last=dischRows[dischRows.length-1];
+      dischCap=Math.abs(last['Capacity(Ah)']);
+      dischVd=(last['Max_Cell_Voltage(mV)']!==null&&last['Min_Cell_Voltage(mV)']!==null)?last['Max_Cell_Voltage(mV)']-last['Min_Cell_Voltage(mV)']:null;
+      dischCells=getCells(last);
+    }else{dischCap=null;dischVd=null;dischCells=getCells({});}
+
+  }else{
+    // NORMAL: pick cycle with highest max capacity
+    const bestCycle=cycleMaxCaps.reduce((a,b)=>b.maxCap>a.maxCap?b:a).cycle;
+    const stepRows=byCycle[bestCycle];
+    const idx=findCutoff(stepRows);
+    const cutRow=stepRows[idx];
+    cap=cutRow['Capacity(Ah)'];
+    vd=(cutRow['Max_Cell_Voltage(mV)']!==null&&cutRow['Min_Cell_Voltage(mV)']!==null)?cutRow['Max_Cell_Voltage(mV)']-cutRow['Min_Cell_Voltage(mV)']:null;
+    cells=getCells(cutRow);
+    cutCurr=cutRow._curr;
+
+    // Discharge: CC Discharge in same cycle, last row
+    const dischRows=parsed.filter(r=>r._ss==='CC Discharge'&&r['Cycle ID']===bestCycle);
+    if(dischRows.length){
+      const last=dischRows[dischRows.length-1];
+      dischCap=Math.abs(last['Capacity(Ah)']);
+      dischVd=(last['Max_Cell_Voltage(mV)']!==null&&last['Min_Cell_Voltage(mV)']!==null)?last['Max_Cell_Voltage(mV)']-last['Min_Cell_Voltage(mV)']:null;
+      dischCells=getCells(last);
+    }else{dischCap=null;dischVd=null;dischCells=getCells({});}
+  }
+
+  // VALIDATION
+  const TH=getTH();
+  const reasons=[];
+  // Capacity: must be >= min (43 ok, 42.9 fail)
+  if(cap!==null&&cap<TH.cap) reasons.push(`Capacity ${cap.toFixed(3)} Ah < ${TH.cap} Ah`);
+  if(vd!==null&&vd>TH.vel)   reasons.push(`VelDiff ${Math.round(vd)} mV > ${TH.vel} mV`);
+  // Discharge: must be in [target, target+tol]; below target = fail, above target+tol = fail
+  if(dischCap!==null){
+    if(dischCap<TH.disch) reasons.push(`Discharge ${dischCap.toFixed(3)} Ah < ${TH.disch} Ah`);
+    else if(dischCap>TH.disch+TH.tol) reasons.push(`Discharge ${dischCap.toFixed(3)} Ah > ${TH.disch+TH.tol} Ah`);
+  }
+
+  const m=filename.match(/(\d{5,6})-Record/i)||filename.match(/(\d{5,6})/);
+  const unitId=m?m[1]:filename.replace(/\.csv$/i,'').slice(-8);
+  return{unitId,filename,cap,vd,cells,cutCurr,dischCap,dischVd,dischCells,pass:reasons.length===0,reasons,isDoubleCharge,doubleInfo};
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+let allResults=[],curFilter='all',curView='both';
+
+function vs(v,ok,dec=3){
+  if(v===null)return'<span class="na">—</span>';
+  return`<span class="${ok?'ok':'fv'}">${dec===0?Math.round(v):v.toFixed(dec)}</span>`;
+}
+
+function cellGridHTML(co){
+  if(!co||!co.cv||!Object.keys(co.cv).length)return'<span class="na">—</span>';
+  const{cv,maxCell,minCell}=co;
+  let h='<div class="cgrid">';
+  for(let i=1;i<=16;i++){
+    const v=cv[i];
+    const dead=v===null||v<=100;
+    const cls=dead?'cdead':i===maxCell?'cmax':i===minCell?'cmin':'';
+    h+=`<div class="cv ${cls}"><div class="cn">C${i}</div><div class="cv2">${dead?'—':Math.round(v)}</div></div>`;
+  }
+  h+='</div>';
+  if(maxCell&&minCell) h+=`<div class="cnote"><span style="color:var(--green)">▲C${maxCell}(${Math.round(cv[maxCell])})</span>&nbsp;·&nbsp;<span style="color:var(--red)">▼C${minCell}(${Math.round(cv[minCell])})</span></div>`;
+  return h;
+}
+
+function filtered(){
+  return allResults.filter(r=>{
+    if(r.error)return curFilter==='all';
+    return curFilter==='all'||(curFilter==='pass'&&r.pass)||(curFilter==='fail'&&!r.pass);
+  });
+}
+
+function renderQuick(){
+  const TH=getTH();
+  const tb=g('qBody'); tb.innerHTML='';
+  const show=filtered();
+  if(!show.length){tb.innerHTML=`<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:28px">No results</td></tr>`;return;}
+  for(const r of show){
+    if(r.error){tb.innerHTML+=`<tr><td class="tl" colspan="12" style="color:var(--red)">${r.filename}: ${r.error}</td></tr>`;continue;}
+    const c3ok=r.cap!==null&&r.cap>=TH.cap;
+    const v3ok=r.vd!==null&&r.vd<=TH.vel;
+    const d5ok=r.dischCap!==null&&r.dischCap>=TH.disch&&r.dischCap<=TH.disch+TH.tol;
+    tb.innerHTML+=`<tr>
+      <td class="tl"><div class="uid">${r.unitId}</div><div class="fn">${r.filename}</div>${r.isDoubleCharge?'<span class="dc-tag">⚡ Double Charge — check manually</span>':''}</td>
+      <td><span class="badge ${r.pass?'pass':'fail'}">${r.pass?'✓ OK':'✗ FAIL'}</span></td>
+      <td class="a-bl">${vs(r.cap,c3ok,3)}</td>
+      <td>${vs(r.vd,v3ok,0)}</td>
+      <td>${r.cells.maxCell??'—'}</td>
+      <td>${r.cells.maxV!==null?Math.round(r.cells.maxV):'—'}</td>
+      <td>${r.cells.minCell??'—'}</td>
+      <td class="g-bl">${vs(r.dischCap,d5ok,3)}</td>
+      <td>${r.dischVd!==null?Math.round(r.dischVd):'—'}</td>
+      <td>${r.dischCells.maxCell??'—'}</td>
+      <td>${r.dischCells.maxV!==null?Math.round(r.dischCells.maxV):'—'}</td>
+      <td>${r.dischCells.minCell??'—'}</td>
+    </tr>`;
+  }
+}
+
+function renderDetail(){
+  const TH=getTH();
+  const tb=g('dBody'); tb.innerHTML='';
+  const show=filtered();
+  if(!show.length){tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:28px">No results</td></tr>`;return;}
+  for(const r of show){
+    if(r.error){tb.innerHTML+=`<tr><td colspan="9" style="color:var(--red)">${r.filename}: ${r.error}</td></tr>`;continue;}
+    const c3ok=r.cap!==null&&r.cap>=TH.cap;
+    const v3ok=r.vd!==null&&r.vd<=TH.vel;
+    const d5ok=r.dischCap!==null&&r.dischCap>=TH.disch&&r.dischCap<=TH.disch+TH.tol;
+
+    let capNote='';
+    if(r.isDoubleCharge&&r.doubleInfo){
+      const d=r.doubleInfo;
+      capNote=`<div class="sv2">⚡ Cycle${d.cycA}: ${d.capA}@${d.currA}A + Cycle${d.cycB}: ${d.capB}@${d.currB}A</div>`;
+    }else{
+      capNote=`<div class="sv2">Cutoff @ ${r.cutCurr!==null?r.cutCurr.toFixed(1):'?'}A</div>`;
+    }
+
+    let notes='';
+    if(r.isDoubleCharge) notes+=`<span class="dc-tag" style="font-size:.7rem;padding:3px 7px">⚡ Double Charge detected — please verify manually</span><br>`;
+    if(r.reasons.length) notes+=r.reasons.map(x=>`<span class="rtag">${x}</span>`).join('');
+    else notes+='<span class="oktag">✓ All passed</span>';
+
+    tb.innerHTML+=`<tr>
+      <td><div style="font-weight:700">${r.unitId}</div><div style="color:var(--muted);font-size:.64rem">${r.filename}</div></td>
+      <td><span class="badge ${r.pass?'pass':'fail'}">${r.pass?'✓ OK':'✗ FAIL'}</span></td>
+      <td>${vs(r.cap,c3ok,3)}${capNote}</td>
+      <td>${vs(r.vd,v3ok,0)}</td>
+      <td>${cellGridHTML(r.cells)}</td>
+      <td>${vs(r.dischCap,d5ok,3)}</td>
+      <td>${r.dischVd!==null?`<span class="ok">${Math.round(r.dischVd)}</span>`:'<span class="na">—</span>'}</td>
+      <td>${cellGridHTML(r.dischCells)}</td>
+      <td>${notes}</td>
+    </tr>`;
+  }
+}
+
+function renderAll(){
+  renderQuick(); renderDetail();
+  g('resTitle').textContent=`Results — ${filtered().length} of ${allResults.length} files`;
+}
+
+function updateSummary(){
+  const valid=allResults.filter(r=>!r.error);
+  const pass=valid.filter(r=>r.pass).length;
+  g('s_tot').textContent=allResults.length;
+  g('s_pass').textContent=pass;
+  g('s_fail').textContent=valid.length-pass;
+  const ac=avg(valid.map(r=>r.cap).filter(v=>v!==null));
+  const av=avg(valid.map(r=>r.vd).filter(v=>v!==null));
+  const ad=avg(valid.map(r=>r.dischCap).filter(v=>v!==null));
+  g('s_cap').textContent=ac!==null?ac.toFixed(2):'—';
+  g('s_vel').textContent=av!==null?Math.round(av):'—';
+  g('s_dis').textContent=ad!==null?ad.toFixed(2):'—';
+}
+
+function setFilter(f,btn){
+  curFilter=f;
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderAll();
+}
+function setView(v,btn){
+  curView=v;
+  document.querySelectorAll('.vb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  g('qEl').style.display=(v==='both'||v==='quick')?'block':'none';
+  g('dEl').style.display=(v==='both'||v==='detail')?'block':'none';
+}
+
+// ═══════════════════════════════════════════
+// FILE PROCESSING
+// ═══════════════════════════════════════════
+async function processFiles(files){
+  const csvs=[...files].filter(f=>/\.csv$/i.test(f.name));
+  if(!csvs.length){alert('No CSV files found.');return;}
+  allResults=[];
+  g('progEl').style.display='block';
+  g('summEl').style.display='none';
+  g('vctrlEl').style.display='none';
+  g('qEl').style.display='none';
+  g('dEl').style.display='none';
+
+  for(let i=0;i<csvs.length;i++){
+    const file=csvs[i];
+    g('progTxt').textContent=`Processing ${i+1}/${csvs.length}: ${file.name}`;
+    g('progBar').style.width=`${Math.round((i+1)/csvs.length*100)}%`;
+    try{
+      const text=await file.text();
+      allResults.push(analyzeFile(parseCSV(text),file.name));
+    }catch(e){
+      allResults.push({error:e.message,filename:file.name});
+    }
+    await new Promise(r=>setTimeout(r,4));
+  }
+
+  g('progEl').style.display='none';
+  g('summEl').style.display='flex';
+  g('vctrlEl').style.display='flex';
+  g('qEl').style.display=(curView==='both'||curView==='quick')?'block':'none';
+  g('dEl').style.display=(curView==='both'||curView==='detail')?'block':'none';
+  updateSummary(); renderAll();
+}
+
+// ═══════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════
+const dz=g('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');processFiles(e.dataTransfer.files);});
+g('fi').addEventListener('change',e=>{processFiles(e.target.files);e.target.value='';});
+</script>
+</body>
+</html>
