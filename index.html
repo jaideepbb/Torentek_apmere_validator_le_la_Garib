@@ -293,20 +293,26 @@ function getCells(row){
 }
 
 // ═══════════════════════════════════════════
-// CUTOFF: last row where current >= 95% of peak
-// This matches exactly how the user manually reads
-// the capacity from the spreadsheet (last stable row
-// before current begins to taper down)
+// CUTOFF: last row where current >= 98% of STEADY current
+// Steady = median of middle 50% of step rows.
+// Using 98% (not 95%) so that small dips like 27.9A
+// (from a 29A steady) are excluded - user always picks
+// the last true-peak row, not the slightly-declining one.
+// Middle-50% median ignores ramp-up spikes and tail.
 // ═══════════════════════════════════════════
 function findCutoff(stepRows){
   const curr=stepRows.map(r=>r._curr||0);
-  const peak=Math.max(...curr,0);
-  const threshold=peak*0.95;
-  let idx=stepRows.length-1;
-  for(let i=stepRows.length-1;i>=0;i--){
-    if(curr[i]>=threshold){idx=i;break;}
+  const n=curr.length;
+  if(n===0)return 0;
+  // Steady = median of middle 50% (cuts off ramp-up and tail)
+  const mid=[...curr.slice(Math.floor(n/4), Math.ceil(3*n/4))].sort((a,b)=>a-b);
+  const steady=mid.length?mid[Math.floor(mid.length/2)]:Math.max(...curr);
+  const threshold=steady*0.98;
+  // Last row at or above threshold
+  for(let i=n-1;i>=0;i--){
+    if(curr[i]>=threshold)return i;
   }
-  return idx;
+  return n-1;
 }
 
 // ═══════════════════════════════════════════
@@ -334,44 +340,58 @@ function analyzeFile(rows,filename){
     byCycle[k].push(r);
   }
 
-  // Detect DOUBLE CHARGE:
-  // Two separate CC Charge cycles where neither alone reaches 55Ah
-  // but together they do. The second charge is in a later cycle.
   const cycles=Object.keys(byCycle).map(Number).sort((a,b)=>a-b);
   const cycleMaxCaps=cycles.map(c=>({cycle:c,maxCap:Math.max(...byCycle[c].map(r=>r['Capacity(Ah)']||0))}));
-  const overallMax=Math.max(...cycleMaxCaps.map(x=>x.maxCap));
-  
-  // Double charge: best single cycle < 55Ah but 2+ charge cycles exist
-  const isDoubleCharge=cycles.length>=2&&overallMax<55;
+  const bestCycleObj=cycleMaxCaps.reduce((a,b)=>b.maxCap>a.maxCap?b:a);
+  const bestCycle=bestCycleObj.cycle;
+
+  // DOUBLE CHARGE detection — the ONLY reliable signal:
+  // A real double charge = the best charge cycle was INTERRUPTED before real discharge.
+  // Proof: its CC Discharge step has tiny capacity (<10Ah) — just an artifact of interruption.
+  // A normal battery (any size): CC Discharge in best cycle has 30-100Ah.
+  // A 45Ah battery's "top-up" cycle3 is irrelevant — cycle2 has its own full discharge.
+  const dischInBest=parsed.filter(r=>r._ss==='CC Discharge'&&r['Cycle ID']===bestCycle);
+  const dischInBestMaxAbs=dischInBest.length?Math.max(...dischInBest.map(r=>Math.abs(r['Capacity(Ah)']||0))):0;
+  const isDoubleCharge=cycles.length>=2&&dischInBestMaxAbs<10;
 
   let cap,vd,cells,cutCurr,dischCap,dischVd,dischCells,doubleInfo=null;
 
   if(isDoubleCharge){
-    // First charge cycle + second charge cycle = combined
-    const cycA=cycles[0], cycB=cycles[1];
-    const rowsA=byCycle[cycA], rowsB=byCycle[cycB];
-    const idxA=findCutoff(rowsA), idxB=findCutoff(rowsB);
-    const rowA=rowsA[idxA], rowB=rowsB[idxB];
-    const capA=rowA['Capacity(Ah)'], capB=rowB['Capacity(Ah)'];
-    cap=capA+capB;
-    // VelDiff and cells from SECOND charge cutoff row
-    vd=(rowB['Max_Cell_Voltage(mV)']!==null&&rowB['Min_Cell_Voltage(mV)']!==null)?rowB['Max_Cell_Voltage(mV)']-rowB['Min_Cell_Voltage(mV)']:null;
-    cells=getCells(rowB);
-    cutCurr=rowB._curr;
-    doubleInfo={capA:capA.toFixed(3),capB:capB.toFixed(3),currA:rowA._curr.toFixed(1),currB:rowB._curr.toFixed(1),cycA,cycB};
+    // Best cycle was interrupted. Find the NEXT cycle that has a real CC Discharge (>=10Ah).
+    // Capacity = sum of best cycle cutoff + resumed cycle cutoff.
+    const cycA=bestCycle;
+    // Find resume cycle: next CC Charge cycle after cycA
+    const cycB=cycles.find(c=>c>cycA&&byCycle[c]);
+    const rowsA=byCycle[cycA], rowsB=cycB?byCycle[cycB]:[];
+    const idxA=findCutoff(rowsA);
+    const rowA=rowsA[idxA];
+    const capA=rowA['Capacity(Ah)'];
+    let capB=0, rowB=null;
+    if(rowsB.length){
+      const idxB=findCutoff(rowsB);
+      rowB=rowsB[idxB];
+      capB=rowB['Capacity(Ah)'];
+    }
+    cap=capA+(capB||0);
+    // VelDiff and cells from RESUMED cycle cutoff (rowB), fallback to rowA
+    const srcRow=rowB||rowA;
+    vd=(srcRow['Max_Cell_Voltage(mV)']!==null&&srcRow['Min_Cell_Voltage(mV)']!==null)?srcRow['Max_Cell_Voltage(mV)']-srcRow['Min_Cell_Voltage(mV)']:null;
+    cells=getCells(srcRow);
+    cutCurr=srcRow._curr;
+    doubleInfo={capA:capA.toFixed(3),capB:(capB||0).toFixed(3),currA:rowA._curr.toFixed(1),currB:rowB?rowB._curr.toFixed(1):'—',cycA,cycB:cycB||'—'};
 
-    // Discharge: CC Discharge in same cycle as second charge (cycB), last row
-    const dischRows=parsed.filter(r=>r._ss==='CC Discharge'&&r['Cycle ID']===cycB);
-    if(dischRows.length){
-      const last=dischRows[dischRows.length-1];
+    // Real discharge: CC Discharge in cycB (the resumed cycle) with >=10Ah
+    const realDischCycle=cycB||bestCycle;
+    const rdRows=parsed.filter(r=>r._ss==='CC Discharge'&&r['Cycle ID']===realDischCycle);
+    if(rdRows.length){
+      const last=rdRows[rdRows.length-1];
       dischCap=Math.abs(last['Capacity(Ah)']);
       dischVd=(last['Max_Cell_Voltage(mV)']!==null&&last['Min_Cell_Voltage(mV)']!==null)?last['Max_Cell_Voltage(mV)']-last['Min_Cell_Voltage(mV)']:null;
       dischCells=getCells(last);
     }else{dischCap=null;dischVd=null;dischCells=getCells({});}
 
   }else{
-    // NORMAL: pick cycle with highest max capacity
-    const bestCycle=cycleMaxCaps.reduce((a,b)=>b.maxCap>a.maxCap?b:a).cycle;
+    // NORMAL: best cycle is complete with real discharge
     const stepRows=byCycle[bestCycle];
     const idx=findCutoff(stepRows);
     const cutRow=stepRows[idx];
